@@ -1,0 +1,176 @@
+
+import {Stream} from ./lazy-iterator
+import blib from bizubee lib
+
+export idgen() -> {
+	var i = 0
+	return () -> {
+		return i then i += 1
+	}
+}
+
+export printMap(map) -> {
+	const obj = {}
+	console.log('map {')
+	for [key, value] in map
+		console.log('\t', key, value)
+	console.log('}')
+}
+
+export bind(id, type, action) -> {
+	document
+		.getElementById(id)
+		.addEventListener(type, action)
+	return action
+}
+
+export keys(obj) -> {
+	return blib.keys(obj)
+}
+
+export printSet(setr) -> {
+	const arr = []
+	for el in setr
+		arr.push(el)
+	console.log('{', arr, '}')
+}
+
+export enumerate(iterable) -> {
+	var
+	,	i = 0
+	,	gen = iterable[Symbol.iterator]()
+	,	api = {
+		next: () -> {
+			const mynext = gen.next()
+			if mynext.done
+				return {
+					done: true
+					value: undefined
+				}
+			else
+				return {
+					done: false
+					value: [i, mynext.value]
+				} then i += 1
+		}
+	}
+
+	api[Symbol.iterator] = () -> {
+		return api
+	}
+	return api
+}
+
+export tube() -> {
+	return new Stream()
+}
+
+export range(start, end, step = 1) -> * {
+	while start != end
+		yield start
+		start += step
+}
+
+export tuple(...args) -> {
+	Object.freeze(args)
+	return args
+}
+
+export zip(...args) -> * {
+	const len 	= args.length
+	const gens	= new Array(args.length)
+	for i in range(0, args.length)
+		gens[i] = args[i][Symbol.iterator]()
+
+	while true do
+		const vals = new Array(len)
+		var i = 0
+		while i < len do
+			const ctrl = gens[i].next()
+			if ctrl.done do
+				return
+			else do
+				vals[i] = ctrl.value
+			i += 1
+
+		Object.freeze(vals)
+
+		yield vals
+}
+
+export cat(...args) -> * {
+	for iter in args
+		yield* iter[Symbol.iterator]()
+}
+
+export sleep(ms) -> {
+	return new Promise((win, fail) -> {
+		setTimeout(win, ms)
+	})
+}
+
+export Array2D(h, w) -> {
+	const table = new Map()
+
+	this.get = ([x, y]) -> {
+		var code = width * y + x
+		if table.has(code)
+			return table.get(width * y + x)
+		else
+			return undefined
+	}
+
+	this.set = ([x, y], value) -> {
+		table.set(width * y + x, value)
+	}
+
+	this.delete = ([x, y]) -> {
+		table.delete(width * y + x)
+	}
+}
+
+# will yield all unique combinations of 
+export combinations(arr, n, offset = 0, last = []) -> * {
+	if n == 0
+		yield last
+		return
+	for i in range(offset, arr.length - n + 1)
+		const sofar = last.concat(arr[i])
+		yield* combinations(arr, n - 1, i + 1, sofar)
+}
+
+export run(fn) -> {
+	return fn()
+}
+
+export const Iterable = run(() -> {
+	Iterable() -> {
+		'do nothing'
+	}
+
+	Iterable.prototype[Symbol.iterator] = () -> {
+		return this.iterate()
+	}
+
+	Iterable.prototype['iterate'] = () -> {
+		throw new Error('"iterate" not implemented!')
+	}
+
+	return Iterable
+})
+
+export const Observable = run(() -> {
+	Observable() -> {
+		'do nothing'
+	}
+
+	Observable.prototype[blib.symbols.observer] = () -> {
+		return this.observe()
+	}
+
+	Observable.prototype['observe'] = () -> {
+		throw new Error('"observe" not implemented!')
+	}
+
+	return Observable
+})

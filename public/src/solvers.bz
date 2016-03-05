@@ -1,0 +1,202 @@
+
+import {tuple} from standard
+import {range, zip, enumerate, keyvals} from iteration
+import {cat, combinations, run} from ./util
+import {WorkerPool} from ./workers
+import {Box, toJSON} from ./sudoku
+import {hiddenSets} from ./hidden-sets
+import {brutalize} from ./brute-force
+import {raceIndex} from ./async
+
+const workers = new WorkerPool('worker.js', 3)
+
+missing(set, n = 9) -> * {
+	for i in range(0, n)
+		if not set.has(i)
+			yield i
+}
+
+firstMissing(set, n = 9) -> {
+	for miss in missing(set, n)
+		return miss
+}
+
+encrypt(arr) -> {
+	var newarr = arr.slice(0)
+	return newarr.join('-')
+}
+
+ensemble(sudoku, ics, ticks) -> {
+	const
+	,	n		= ics.length
+	,	pool 	= new Array(n)
+	,	changes	= new Map()
+
+	for i in range(0, n)
+		const {point, value} = ics[i]
+		pool[i] = sudoku.copy()
+		pool[i].onset = ({value, point}) -> {
+			const
+			,	code = sudoku.encode(point)
+			,	hash = "${code}-${value}"
+
+			if changes.has(hash)
+				var count = changes.get(hash)
+				count += 1
+				if count == n
+					if not sudoku.determined(point)
+						sudoku.set(point, value)
+				else
+					changes.set(hash, count)
+			else
+				changes.set(hash, 1)
+		}
+		pool[i].set(point, value, true)
+
+	for i in range(0, ticks)
+		for simulator in pool
+			tileValueEliminate(simulator)
+}
+
+ensembleAsync(sudoku, ics, ticks) -> {
+	const
+	,	n			= ics.length
+	,	promises 	= new Array(n)
+	,	changes		= new Map()
+	,	json		= sudoku.toJSON()
+
+	workHandler(i) -> ~ {
+		var counter = 0
+		const data = {
+			ticks
+			specs: json
+			initial: ics[i]
+		}
+
+		for change on workers.resultStream(data)
+			const
+			,	{point, value} = change
+			,	code = sudoku.encode(point)
+			,	hash = "${code}-${value}"
+
+			if changes.has(hash)
+				var count = changes.get(hash)
+				count += 1
+				if count == n
+					if not sudoku.determined(point)
+						sudoku.set(point, value)
+				else
+					changes.set(hash, count)
+			else
+				changes.set(hash, 1)
+	}
+
+	for i in range(0, n)
+		const
+		,	ic 		= ics[i]
+		,	prom	= run(workHandler.bind(null, i))
+		promises[i] = prom
+
+	return Promise.all(promises)
+}
+
+ensembleEliminate(sudoku, max, ticks = 3) -> {
+	for point in sudoku.emptyPoints()
+		const possible 	= sudoku.getPossibilities(point)
+
+		if not possible.size > max
+			const ics = new Array(possible.size)
+			for [i, value] in enumerate(possible)
+				ics[i] = {point, value}
+			ensemble(sudoku, ics, ticks)
+}
+
+ensembleEliminateAsync(sudoku, max, ticks = 3) -> {
+	const promises = []
+	for point in sudoku.emptyPoints()
+		const possible 	= sudoku.getPossibilities(point)
+
+		if not possible.size > max
+			const ics = new Array(possible.size)
+			for [i, value] in enumerate(possible)
+				ics[i] = {point, value}
+			promises.push(ensembleAsync(sudoku, ics, ticks))
+	return Promise.all(promises)
+}
+
+brutalizeAsync(sudoku) -> {
+	const
+	,	pool = new WorkerPool('bf-worker.js', 3)
+	,	buff = []
+	,	json = toJSON(sudoku)
+
+	var
+	,	result 	= null
+	,	point 	= null
+
+	for pt in sudoku.emptyPoints() do
+		if sudoku.range(pt) == 3 do
+			point = pt
+			break
+	if point == null
+		for pt in sudoku.emptyPoints() do
+			if sudoku.range(pt) > 3 do
+				point = pt
+				break
+
+	for value in sudoku.getPossibilities(point) do
+		const result = pool.result({
+			specs	: json
+			initial	: {point, value}
+		})
+		buff.push(result)
+
+	return {
+		done: Promise.race(buff).then((res) => {
+			pool.close()
+			result = res
+		})
+		transfer: (sudoku) -> {
+			for [code, value] in keyvals(result.mappings) do
+				const pt = sudoku.decode(code)
+				if sudoku.determined(pt) do
+					continue
+				else
+					sudoku.set(pt, +value)
+		}
+		halt: () -> {
+			pool.close()
+		}
+	}
+}
+
+export solver(sudoku) -> ~ {
+	var bf = true
+
+	sudoku.game = true
+	for i in range(0, 2)
+		await ensembleEliminateAsync(sudoku, 3, 10)
+		sudoku.update()
+		if sudoku.completed() do
+			bf = false
+			break
+
+		for i in range(1, 6)
+			hiddenSets(sudoku, i)
+			sudoku.update()
+		if sudoku.completed() do
+			bf = false
+			break
+			
+	if bf do
+		const ctrl = brutalizeAsync(sudoku)
+		await ctrl.done
+		ctrl.transfer(sudoku)
+
+	sudoku.game = false
+	return sudoku.completed()	
+}
+
+
+
+

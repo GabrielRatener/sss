@@ -1,0 +1,247 @@
+
+import {Observable, idgen, run, enumerate} from ./util
+import {Queue} from ./collections
+import {symbols} from bizubee lib
+
+const newid = idgen()
+
+Observer.prototype[symbols.observer] = () -> {
+	return this
+}
+
+export promiseController() -> {
+	const ctrl = {}
+
+	ctrl.promise = new Promise((win, fail) -> {
+		ctrl.fulfill = win
+		ctrl.reject = fail
+	})
+
+	return ctrl
+}
+
+export observerController() -> {
+	const ctrl = {}
+
+	ctrl.observer = new Observer((send, close, raise) -> {
+		ctrl.send 	= send 
+		ctrl.close 	= close
+		ctrl.raise 	= raise
+	})
+
+	return ctrl
+}
+
+export const
+,	resolve	= Promise.resolve.bind(Promise)
+,	reject	= Promise.reject.bind(Promise)
+
+
+export all(...args) -> {
+	return Promise.all(args)
+}
+
+export race(...args) -> {
+	return Promise.race(args)
+}
+
+export raceIndex(...args) -> {
+	control(win, fail) => {
+		for [i, promise] in enumerate(args) do
+			proceed() => {
+				win(i)
+			}
+			promise.then(proceed, fail)
+	}
+
+	return new Promise(control)
+}
+
+export Observer(func) -> {
+	var
+	,	fulfillers 	= new Queue()
+	,	values		= new Queue()
+	,	done		= false
+	,	endvalue	= undefined
+	,	error		= false
+
+	update() -> {
+		while not fulfillers.isEmpty() or values.isEmpty() do
+			const
+			,	ctrl 	= fulfillers.dequeue()
+			,	value 	= values.dequeue()
+
+			ctrl.win({
+				done: false
+				value: value
+			})
+		
+
+		if done do
+			if error do
+				while not fulfillers.isEmpty() do
+					const ctrl = fulfillers.dequeue()
+					ctrl.fail(endvalue)
+			else do
+				const abso = {
+					value: endvalue
+					done: true
+				}
+				Object.freeze(abso)
+
+				while not fulfillers.isEmpty() do
+					const ctrl = fulfillers.dequeue()
+					ctrl.win(abso)
+	}
+
+	send(value) -> {
+		if done do
+			throw new Error('Observer is closed, cannot send to it!')
+		
+		values.enqueue(value)
+		update()
+	}
+
+	close(value) -> {
+		if done do
+			throw new Error('Observer is closed, cannot re-close it!')
+
+		done = true
+		endvalue = value
+		update()
+	}
+
+	raise(value) -> {
+		if done do
+			throw new Error('Observer is closed, cannot raise error on it!')
+
+		error = true
+		close(value)
+	}
+
+	@next = () -> {
+		return new Promise((win, fail) -> {
+			fulfillers.enqueue({win, fail})
+			update()
+		})
+	}
+
+	func(send, close, raise)
+}
+
+export class EventSource extends Observable {
+	constructor(func) -> {
+		super()
+		const fire = (e) => {
+			for [key, listener] in @_listeners
+				listener(e)
+		}
+
+		@_listeners = new Map()
+		if func? do
+			func(fire)
+	}
+
+	addListener(func) -> {
+		if func == undefined
+			throw new Error('What?')
+		const id = newid()
+		@_listeners.set(id, func)
+		return id
+	}
+
+	removeListener(id) -> {
+		@_listeners.delete(id)
+	}
+
+	observe() -> {
+		return new Observer((send, close) => {
+			@addListener(send)
+		})
+	}
+
+	map(fn) -> {
+		return new EventSource((fire) => {
+			@addListener((data) -> {
+				fire(fn(data))
+			})
+		})
+	}
+}
+
+export class CloseableEventSource extends EventSource {
+	constructor(func) -> {
+		super()
+
+		var closeEvent
+		const fire = (e) => {
+			for [key, listener] in @_listeners
+				listener(e)
+		}
+
+		const close = (e) => {
+			closeEvent(e)
+		}
+
+		@end = new EventSource((fire) => {
+			closeEvent = fire
+		})
+
+		if func? do
+			func(fire, close)
+	}
+
+	observe() -> {
+		return new Observer((send, close) => {			
+			const
+			,	serial 		= @addListener(send)
+			,	terminal 	= @end.addListener(closer)
+
+			closer(e) => {
+				close(e)
+				@removeListener(serial)
+				@end.removeListener(terminal)
+			}
+		})
+	}
+
+	map(fn) -> {
+		return new CloseableEventSource((fire, close) => {
+			const id = @addListener((data) => {
+				fire(fn(data))
+			})
+
+			@end.addListener((data) => {
+				@removeListener(id)
+			})
+		})
+	}
+
+	reduce(fn, initial) -> ~ {
+		var
+		,	index 		= 0
+		,	summation	= initial
+
+		for e on this do
+			summation = fn(summation, e, index, this)
+			index += 1
+		return summation
+	}
+}
+
+export lockableBinder() -> {
+	const ctrl = observerController()
+
+	run(() -> ~ {
+		for func on ctrl.observer
+			await func()
+	})
+
+	return (id, action, fn) -> {
+		const el = document.getElementById(id)
+		el.addEventListener(action, (e) -> {
+			const bfn = fn.bind(el, e)
+			ctrl.send(bfn)
+		})
+	}
+}

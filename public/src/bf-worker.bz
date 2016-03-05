@@ -1,0 +1,19 @@
+
+import {fromJSON, toJSON} from ./sudoku
+import {brutalize} from ./brute-force
+
+self.onmessage = (e) -> {
+	const
+	,	[id, {specs, initial}] 		= e.data
+	,	{point, value}				= initial
+	,	sudoku 						= fromJSON(specs)
+
+	sudoku.set(point, value)
+	brutalize(sudoku)
+	
+	self.postMessage({
+		id
+		done: true
+		value: toJSON(sudoku)
+	})
+}

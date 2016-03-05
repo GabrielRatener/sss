@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>SSS - Simple Sudoku Solver</title>
+		<link rel="stylesheet" type="text/css" href="style.css">
+		<script src="main.js"></script>
+	</head>
+
+	<body>
+		<div id="content">
+			<table id="table1">
+				<tr>
+					<td class="inp"><input id="i0" type="text"></td>
+					<td class="inp"><input id="i1" type="text"></td>
+					<td class="inp rig"><input id="i2" type="text"></td>
+					<td class="inp"><input id="i3" type="text"></td>
+					<td class="inp"><input id="i4" type="text"></td>
+					<td class="inp rig"><input id="i5" type="text"></td>
+					<td class="inp"><input id="i6" type="text"></td>
+					<td class="inp"><input id="i7" type="text"></td>
+					<td class="inp"><input id="i8" type="text"></td>
+				</tr>
+				
+				<tr>
+					<td class="inp"><input id="i9" type="text"></td>
+					<td class="inp"><input id="i10" type="text"></td>
+					<td class="inp rig"><input id="i11" type="text"></td>
+					<td class="inp"><input id="i12" type="text"></td>
+					<td class="inp"><input id="i13" type="text"></td>
+					<td class="inp rig"><input id="i14" type="text"></td>
+					<td class="inp"><input id="i15" type="text"></td>
+					<td class="inp"><input id="i16" type="text"></td>
+					<td class="inp"><input id="i17" type="text"></td>
+				</tr>
+				
+				<tr>
+					<td class="inp dow"><input id="i18" type="text"></td>
+					<td class="inp dow"><input id="i19" type="text"></td>
+					<td class="inp dow rig"><input id="i20" type="text"></td>
+					<td class="inp dow"><input id="i21" type="text"></td>
+					<td class="inp dow"><input id="i22" type="text"></td>
+					<td class="inp dow rig"><input id="i23" type="text"></td>
+					<td class="inp dow"><input id="i24" type="text"></td>
+					<td class="inp dow"><input id="i25" type="text"></td>
+					<td class="inp dow"><input id="i26" type="text"></td>
+				</tr>
+				
+				<tr>
+					<td class="inp"><input id="i27" type="text"></td>
+					<td class="inp"><input id="i28" type="text"></td>
+					<td class="inp rig"><input id="i29" type="text"></td>
+					<td class="inp"><input id="i30" type="text"></td>
+					<td class="inp"><input id="i31" type="text"></td>
+					<td class="inp rig"><input id="i32" type="text"></td>
+					<td class="inp"><input id="i33" type="text"></td>
+					<td class="inp"><input id="i34" type="text"></td>
+					<td class="inp"><input id="i35" type="text"></td>
+				</tr>
+				
+				<tr>
+					<td class="inp"><input id="i36" type="text"></td>
+					<td class="inp"><input id="i37" type="text"></td>
+					<td class="inp rig"><input id="i38" type="text"></td>
+					<td class="inp"><input id="i39" type="text"></td>
+					<td class="inp"><input id="i40" type="text"></td>
+					<td class="inp rig"><input id="i41" type="text"></td>
+					<td class="inp"><input id="i42" type="text"></td>
+					<td class="inp"><input id="i43" type="text"></td>
+					<td class="inp"><input id="i44" type="text"></td>
+				</tr>
+				
+				<tr>
+					<td class="inp dow"><input id="i45" type="text"></td>
+					<td class="inp dow"><input id="i46" type="text"></td>
+					<td class="inp dow rig"><input id="i47" type="text"></td>
+					<td class="inp dow"><input id="i48" type="text"></td>
+					<td class="inp dow"><input id="i49" type="text"></td>
+					<td class="inp dow rig"><input id="i50" type="text"></td>
+					<td class="inp dow"><input id="i51" type="text"></td>
+					<td class="inp dow"><input id="i52" type="text"></td>
+					<td class="inp dow"><input id="i53" type="text"></td>
+				</tr>
+				
+				<tr>
+					<td class="inp"><input id="i54" type="text"></td>
+					<td class="inp"><input id="i55" type="text"></td>
+					<td class="inp rig"><input id="i56" type="text"></td>
+					<td class="inp"><input id="i57" type="text"></td>
+					<td class="inp"><input id="i58" type="text"></td>
+					<td class="inp rig"><input id="i59" type="text"></td>
+					<td class="inp"><input id="i60" type="text"></td>
+					<td class="inp"><input id="i61" type="text"></td>
+					<td class="inp"><input id="i62" type="text"></td>
+				</tr>
+				
+				<tr>
+					<td class="inp"><input id="i63" type="text"></td>
+					<td class="inp"><input id="i64" type="text"></td>
+					<td class="inp rig"><input id="i65" type="text"></td>
+					<td class="inp"><input id="i66" type="text"></td>
+					<td class="inp"><input id="i67" type="text"></td>
+					<td class="inp rig"><input id="i68" type="text"></td>
+					<td class="inp"><input id="i69" type="text"></td>
+					<td class="inp"><input id="i70" type="text"></td>
+					<td class="inp"><input id="i71" type="text"></td>
+				</tr>
+				
+				<tr>
+					<td class="inp"><input id="i72" type="text"></td>
+					<td class="inp"><input id="i73" type="text"></td>
+					<td class="inp rig"><input id="i74" type="text"></td>
+					<td class="inp"><input id="i75" type="text"></td>
+					<td class="inp"><input id="i76" type="text"></td>
+					<td class="inp rig"><input id="i77" type="text"></td>
+					<td class="inp"><input id="i78" type="text"></td>
+					<td class="inp"><input id="i79" type="text"></td>
+					<td class="inp"><input id="i80" type="text"></td>
+				</tr>
+			</table>
+			<div id="control_bar">
+				<input class="action" type="button" id="solve" value="Solve">
+				<input class="action" type="button" id="original" value="Original">	
+				<input class="action" type="button" id="clear" value="Clear">
+				<input class="action" type="button" id="generate" value="Random">
+			</div>
+		</div>
+	</body>
+</html>

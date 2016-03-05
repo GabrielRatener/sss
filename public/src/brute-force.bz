@@ -1,0 +1,45 @@
+
+import {range} from standard
+import {tileValueEliminate} from ./tile-eliminate
+import {hiddenSets} from ./hidden-sets
+
+transfer(origin, dest) -> {
+	for pt in dest.emptyPoints() do
+		const val = origin.get(pt)
+		dest.set(pt, val)
+}
+
+export brutalize(sudoku) -> {
+	const empty 	= Array.from(sudoku.emptyPoints())
+	var guesses 	= new Set([sudoku])
+
+	empty.sort((a, b) => {
+		return sudoku.range(a) - sudoku.range(b)
+	})
+
+	for pt in empty do
+		const set = new Set()
+
+		for guessGrid in guesses do
+			const possible = guessGrid.getPossibilities(pt)
+			if possible.size < 2 do
+				set.add(guessGrid)
+				continue
+			for possibility in possible do
+				const tester = guessGrid.copy()
+				tester.set(pt, possibility)
+				for i in range(0, 2) do
+					for n in range(2, 4) do
+						hiddenSets(tester, n)
+						tester.update()
+					tileValueEliminate(tester)
+					tester.update()
+					if not tester.validate() do
+						continue 1
+					else
+						if tester.completed() do
+							transfer(tester, sudoku)
+							return
+				set.add(tester)
+		guesses = set
+}

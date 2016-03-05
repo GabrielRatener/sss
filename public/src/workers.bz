@@ -1,0 +1,87 @@
+
+import {range, run, tuple, idgen} from ./util
+import {CloseableEventSource} from ./async
+
+const getid = idgen()
+
+sink() -> {
+	# nothing to do here
+}
+
+export class WorkerPool {
+	constructor(path, n) -> {
+		onmessage({data: {id, done, value}}) => {
+			if not @_pipeTable.has(id)
+				throw new Error('Worker sent invalid id!')
+
+			const [fire, close] = @_pipeTable.get(id)
+			if done do
+				@_pipeTable.delete(id)
+				close(value)
+			else do
+				fire(value)
+		}
+
+		@_path 		= path
+		@_n 		= n
+		@_target 	= 0
+		@_workers 	= new Array(n)
+		@_pipeTable = new Map()
+
+		for i in range(0, n)
+			const worker = new Worker(path)
+			worker.onmessage = onmessage
+			@_workers[i] = worker
+	}
+
+	result(data) -> {
+		const
+		,	worker 	= @_workers[@_target]
+		,	id 		= getid()
+		,	prom	= new Promise(controller)
+		
+		controller(win, fail) => {
+			const pair = tuple(sink, win, fail)
+
+			@_pipeTable.set(id, pair)
+		}
+
+		@_target += 1
+		if @_target == @_workers.length do
+			@_target = 0
+
+		worker.postMessage(tuple(id, data))
+		return prom
+	}
+
+	resultStream(data) -> {
+		const
+		,	worker 	= @_workers[@_target]
+		,	id 		= getid()
+		,	pipe	= new CloseableEventSource(controller)
+		
+		controller(fire, close, err) => {
+			const pair = tuple(fire, close, err)
+
+			@_pipeTable.set(id, pair)
+		}
+
+		@_target += 1
+		if @_target == @_workers.length do
+			@_target = 0
+
+		worker.postMessage(tuple(id, data))
+		return pipe
+	}
+
+	close() -> {
+		const error = new Error("Workers terminated!")
+		for worker in @_workers do
+			worker.terminate()
+		for [id, ctrl] in @_pipeTable do
+			const [send, close, err] = ctrl
+			@_pipeTable.delete(id)
+			if err? do
+				err(error)
+	}
+}

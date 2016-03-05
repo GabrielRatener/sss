@@ -1,0 +1,100 @@
+
+body
+{
+	background-color: white;
+	text-align: center;
+}
+
+@keyframes unflip {
+	from {
+		transform: rotateZ(90deg) rotateY(90deg);
+	}
+	to {
+		transform: rotateZ(0deg) rotateY(0deg);
+ 	}
+}
+
+div#content
+{
+	white-space: nowrap;
+	display: inline-block;
+	background-color: white;
+	margin-left: auto;
+	margin-right: auto;
+	padding: 10px;
+	margin-top: 20px; 
+	box-shadow: 0px 0px 60px #000;
+	text-align: left;
+}
+
+
+.inp input {
+	width: 40px;
+	height: 40px;
+	border: 1px solid white;
+	margin: 2px;
+	text-align: center;
+	font-size: 24pt;
+	animation-duration: 2s;
+	backface-visibility: hidden;
+}
+
+.inp {
+	text-align: center;
+	border: 1px solid black;
+	-webkit-perspective: 200px;
+	perspective: 200px;
+}
+
+.inp.rig {
+	border-right-width: 3px; 
+}
+
+.inp.dow {
+	border-bottom-width: 3px;
+}
+
+
+table {
+	border-collapse: collapse;
+}
+
+div#control_bar
+{
+	margin-top: 5px;
+	display: inline-block;
+}
+input
+{
+	outline: none;
+}
+input.action
+{
+	font-family: Arial;
+	font-size: 10pt;
+	width: 60px;
+	height: 60px;
+	color: white;
+	background-color: black;
+	text-align: center;
+	border: none;
+	border-radius: 30px;
+	margin: 5px;
+	margin-left: 0px;
+	margin-bottom: 0px;
+	cursor: pointer;
+	box-shadow: 2px 5px 2px #666;
+}
+
+input.action:hover {
+	background-color: #222;
+	color: #ddd;
+}
+
+input#solve.solving
+{
+	background-size: 100% 100%;
+	color: transparent;
+	cursor: default;
+	background-image: url(solving.gif);
+}

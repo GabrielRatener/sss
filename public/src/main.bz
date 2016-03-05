@@ -1,0 +1,150 @@
+
+import {
+	sleep
+	tube
+	range
+	run
+	enumerate
+	combinations
+} from ./util
+
+import {
+	all
+	race
+	resolve
+	lockableBinder
+} from ./async
+
+import {Sudoku} from ./sudoku
+import {solver} from ./solvers
+import {levels} from ./levels
+
+const {round, min, max, random, floor} = Math
+const state = new Map()
+const bind = lockableBinder()
+
+fadeIn([x, y], value) -> {
+	var
+	,	id = "i${9 * y + x}"
+	,	el = document.getElementById(id)
+
+
+	el.style.transform = 'rotateY(180deg)'
+	el.style.color = 'white'
+	el.style.backgroundColor = 'black'
+	el.value = "${value}"
+
+	return new Promise((win, fail) -> {
+		el.addEventListener('animationend', win)
+		el.style.animationName = 'unflip'
+	}).then(() => {
+		el.style.transform = ''
+		el.style.animationName = ''
+	})
+}
+
+clear(pt, all = true) -> ~ {
+	if all
+		for x in range(0, 9)
+			for y in range(0, 9)
+				clear([x, y], false)
+		state.clear()
+	else
+		var
+		,	[x, y] = pt
+		,	id = "i${9 * y + x}"
+		,	el = document.getElementById(id)
+
+
+		el.value = ''
+		el.style.color = ''
+		el.style.backgroundColor = ''
+}
+
+original(pt, all = true) -> ~ {
+	if all
+		const buff = []
+		for x in range(0, 9)
+			for y in range(0, 9)
+				buff.push(original([x, y], false))
+		await Promise.all(buff)
+	else
+		var
+		,	[x, y] 	= pt
+		,	code	= 9 * y + x
+
+		await clear(pt, false)
+		if state.has(code)
+			document.getElementById('i' + code).value = 
+				state.get(code)
+}
+
+solve() -> ~ {
+	const sudoku = new Sudoku()
+	var done
+
+	document.getElementById('solve')
+		.classList.add('solving')
+
+	state.clear()
+	for i in range(0, 81)
+		const
+		,	x = i % 9
+		,	y = i // 9
+		,	id = "i${i}"
+		,	el = document.getElementById(id)
+		,	val = +el.value
+		if val == 0
+			continue
+		sudoku.set([x, y], val, true)
+		state.set(i, val)
+
+	done = run(() -> ~ {
+		var i = 0, buff = []
+		for {point, value} on sudoku.changes
+			if (i + 1) % 20 == 0 do
+				await fadeIn(point, value)
+				buff = []
+			else
+				buff.push(fadeIn(point, value))
+			i += 1
+		await Promise.all(buff)
+	})
+
+	if await solver(sudoku) do
+		await done
+
+	document.getElementById('solve')
+		.classList.remove('solving')
+}
+
+randomSudoku(level) -> {
+	if 0 < level < 5 do
+		const
+		,	all 	= levels[level]
+		,	index	= floor(all.length * random())
+
+		return all[index]
+	else do
+		throw new Error('Level ${level} does not exist!')
+}
+
+generate() -> ~ {
+	await clear()
+	set(randomSudoku(4))
+}
+
+window.set = (string) -> {
+	for [i, c] in enumerate(string)
+		if c == '0'
+			continue
+		else
+			document.getElementById("i${i}").value = c
+}
+
+window.onload = () -> {
+	bind('solve', 'click', solve)
+	bind('original', 'click', original)
+	bind('clear', 'click', clear)
+	bind('generate', 'click', generate)
+}

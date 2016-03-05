@@ -1,0 +1,315 @@
+
+import {range, zip, keyvals} from iteration
+import {EventObservable} from observation
+import {tuple, printSet} from ./util
+
+const {sqrt, round, floor, random} = Math
+
+initialSet(n) -> {
+	const set = new Set()
+	for i in range(0, n)
+		set.add(i + 1)
+	return set
+}
+
+export toJSON(sudoku) -> {
+	return sudoku.toJSON()
+}
+
+export fromJSON(json) -> {
+	const sudoku = new Sudoku(json.size)
+	for [position, value] in keyvals(json.mappings) do
+		const pt = sudoku.decode(+position)
+		sudoku.set(pt, +value)
+	return sudoku
+}
+
+export class Sudoku {
+	constructor(n = 9, options = {}, copymode = false) -> {
+		@_boxSize 	= round(sqrt(n))
+		@_size 		= n
+		@_area 		= n ^ 2
+		@_grid 		= new Array(@_size)
+		@_count 	= 0
+		@changes 	= new EventObservable((fire, close) => {
+			@_fire 		= fire
+			@_close 	= close
+		})
+
+
+		for i in range(0, @_size)
+			if copymode
+				@_grid[i] = new Array(@_size)
+				continue
+
+			const arr = new Array(@_size)
+			for j in range(0, arr.length)					
+				arr[j] = initialSet(@_size)
+			@_grid[i] = arr
+	}
+
+	copy() -> {
+		const copied = new Sudoku(@_size, {}, true)
+		copied._count = @_count
+		for x in range(0, @_size)
+			for y in range(0, @_size)
+				if @_grid[y][x] is Set
+					copied._grid[y][x] = new Set(@_grid[y][x])
+				else
+					copied._grid[y][x] = @_grid[y][x]
+		return copied
+	}
+
+	get([x, y]) -> {
+		const value = @_grid[y][x]
+		if value is Set
+			return 0
+		else
+			return value
+	}
+
+	set([x, y], value, quiet = false, update = true) -> {
+		if @_grid[y][x] is Set
+			@_count += 1
+			@_grid[y][x] = +value
+			for collection in @collectionsAt([x, y])
+				for [i, j] in collection.iterate()
+					if i == x and j == y
+						continue
+					if @determined([i, j])
+						continue
+					@removePossibility([i, j], value)
+			if not quiet do @_fire({
+				point: [x, y]
+				value: +value
+			})
+
+			if @_count == @_area do
+				@_close()
+		else
+			throw new Error("Tile [${x}, ${y}] has already been assigned")
+	}
+
+	determined([x, y]) -> {
+		return not @_grid[y][x] is Set
+	}
+
+	isPossible([x, y], value) ->
+		const val = @_grid[y][x]
+		if val is Set
+			return val.has(value)
+		else
+			return val == value
+
+	getPossibilities([x, y], value) ->
+		const val = @_grid[y][x]
+		if val is Set
+			return new Set(val)
+		else
+			return new Set([val])
+
+	removePossibility([x, y], value) -> {
+		const val = @_grid[y][x]
+		if val is Set
+			if val.has(value)
+				val.delete(value)
+	}
+
+	update() -> {
+		for [x, y] in @emptyPoints()
+			const set = @_grid[y][x]
+			if not set.size == 1
+				continue
+			for val in set
+				@set([x, y], val)
+	}
+
+	collectionsAt(pt) -> * {
+		yield @boxAt(pt)
+		yield @rowAt(pt)
+		yield @columnAt(pt)
+	}
+
+	boxAt([x, y]) -> {
+		const
+		,	left 	= 3 * (x // 3)
+		,	top 	= 3 * (y // 3)
+
+		return new Box(@_boxSize, tuple(left, top)) 
+	}
+
+	rowAt([x, y]) -> {
+		return new Row(@_size, [0, y])
+	}
+
+	columnAt([x, y]) -> {
+		return new Column(@_size, [x, 0])
+	}
+
+	boxes() -> * {
+		const boxSize = round(sqrt(@_size))
+		for x in range(0, boxSize)
+			for y in range(0, boxSize)
+				yield new Box(@_boxSize, tuple(
+					boxSize * x
+					boxSize * y
+				))
+		return
+	}
+
+	allCollections() -> * {
+		for [i, box] in zip(range(0, @_size), @boxes())
+			yield @rowAt([i, i])
+			yield @columnAt([i, i])
+			yield box
+	}
+
+	size() -> {
+		return @_size
+	}
+
+	completed() -> {
+		return (@_area == @_count)
+	}
+
+	encode([x, y]) -> {
+		return @_size * y + x
+	}
+
+	decode(n) -> {
+		return tuple(
+			n % @_size
+			n // @_size
+		)
+	}
+
+	randomEmptyPoint() -> {
+		if @completed() do
+			throw new Error('No empty points!')
+
+		while true
+			const pt = @randomPoint()
+			if @determined(pt)
+				continue
+			return pt
+	}
+
+	randomPoint() -> {
+		const
+		,	x = floor(9 * random())
+		,	y = floor(9 * random())
+
+		return tuple(x, y)
+	}
+
+	toJSON() -> {
+		const mappings = {}
+		for x in range(0, @_size)
+			for y in range(0, @_size)
+				const val = @_grid[y][x]
+				if val is Set
+					continue
+				mappings[@encode([x, y])] = val
+
+		return {
+			mappings
+			size: @_size
+		}
+	}
+
+	toString() -> {
+		const buff = new Array(@_area)
+		for y in range(0, @_size)
+			for x in range(0, @_size)
+				const pt = [x, y]
+				buff[@encode(pt)] = @get(pt)
+		return buff.join('')
+	}
+
+	emptyPoints() -> * {
+		for x in range(0, @_size)
+			for y in range(0, @_size)
+				if not @_grid[y][x] is Set
+					continue
+				yield tuple(x, y)
+	}
+
+	range([x, y]) -> {
+		if @determined([x, y]) do
+			return 1
+		else
+			return @_grid[y][x].size
+	}
+
+	validate() -> {
+		const
+		,	colmap = new Map()
+		,	rowmap = new Map()
+		,	boxmap = new Map()
+
+		for x in range(0, @_size) do
+			for y in range(0, @_size) do
+				const value = @get([x, y])
+				if value == 0 do
+					const possible = @getPossibilities([x, y])
+					if possible.size == 0 do
+						return false
+				else
+					const pairs = [
+						tuple(colmap, x)
+						tuple(rowmap, y)
+						tuple(boxmap, "${y // 3}${x // 3}")
+					]
+
+					for [house, hash] in pairs do
+						if not house.has(hash) do
+							house.set(hash, new Set())
+
+						const set = house.get(hash)
+						if set.has(value) do
+							return false
+						else
+							set.add(value)
+		return true
+	}
+}
+
+class Collection {
+	constructor(size, point) -> {
+		@_size = size
+		@_point = point
+	}
+
+	iterate() -> * {
+		throw new Error('Must be subclassed!')
+	}
+}
+
+export class Box extends Collection {
+	type: 'box'
+	iterate() -> * {
+		var [x0, y0] = @_point
+		for x in range(0, @_size)
+			for y in range(0, @_size)
+				yield tuple(x0 + x, y0 + y)
+		return
+	}
+}
+
+export class Column extends Collection {
+	type: 'column'
+	iterate() -> * {
+		var [x0, y0] = @_point
+		for y in range(0, @_size)
+			yield tuple(x0, y)
+	}
+}
+
+export class Row extends Collection {
+	type: 'row'
+	iterate() -> * {
+		var [x0, y0] = @_point
+		for x in range(0, @_size)
+			yield tuple(x, y0)
+	}
+}

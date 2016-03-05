@@ -1,0 +1,14 @@
+{
+  "name": "sss",
+  "version": "0.0.1",
+  "description": "The Simple Sudoku Server",
+  "keywords": [
+    "sudoku",
+    "solver",
+    "puzzle",
+    "combinatorics",
+    "sets"
+  ],
+  "author": "Gabriel Ratener",
+  "license": "MIT",
+}
