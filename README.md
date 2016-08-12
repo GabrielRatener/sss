@@ -1,5 +1,5 @@
 
-# Start the server
+# Start the Server
 
 Using NPM's `http-server` tool
 
@@ -8,5 +8,5 @@ $ cd sss
 $ http-server
 ```
 
-Then visit localhost:8080
+Then visit `localhost:8080`
 
