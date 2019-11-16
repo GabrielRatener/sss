@@ -1,0 +1,73 @@
+
+
+#flake {
+	background: black;
+	list-style-type: none;
+	height: 100px;
+	width: 90%;
+}
+
+#flake li {
+	display: inline-block;
+	height: 20px;
+	background-color: gray;
+	border-radius: 10px;
+	margin: 10px;
+}
+
+#flake span {
+	display: inline-block;
+	margin-right: 10px;
+	margin-left: 10px;
+	color: orange;
+}
+
+#flake input {
+	width: 20px;
+	height: 20px;
+	border-radius: 10px;
+	border: none;
+	background-color: red;
+	cursor: pointer;
+}
+
+#editor {
+    /** Setting height is also important, otherwise editor wont showup**/
+    height: 300px;
+    width: 60%;
+    padding: 5px;
+    margin: 5px;
+    display: inline-block;
+}
+
+#console {
+    height: 300px;
+    width: 30%;
+    padding: 5px;
+    margin: 5px;
+    display: inline-block;
+    background-color: gray;
+}
+
+div#action_bar {
+	padding: 5px;
+    margin: 5px;
+}
+
+input.action
+{
+	font-family: Arial;
+	font-size: 10pt;
+	width: 60px;
+	height: 60px;
+	color: white;
+	background-color: black;
+	text-align: center;
+	border: none;
+	border-radius: 30px;
+	margin: 5px;
+	margin-left: 0px;
+	margin-bottom: 0px;
+	cursor: pointer;
+	box-shadow: 2px 5px 2px #666;
+}

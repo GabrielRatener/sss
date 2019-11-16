@@ -9,6 +9,25 @@
     "combinatorics",
     "sets"
   ],
+  "scripts": {
+    "build": "rollup -c",
+    "build:watch": "rollup -c -w"
+  },
   "author": "Gabriel Ratener",
   "license": "MIT",
+  "dependencies": {
+    "rollup": "^1.26.3",
+    "rollup-plugin-commonjs": "^10.1.0",
+    "rollup-plugin-defscript": "^0.1.6",
+    "rollup-plugin-node-resolve": "^5.2.0",
+    "rollup-plugin-resolve": "0.0.1-predev.1",
+    "rollup-plugin-svelte": "^5.1.0",
+    "sass": "^1.23.3",
+    "svelte": "^3.12.1"
+  },
+  "devDependencies": {
+    "node-sass": "^4.13.0",
+    "rollup-plugin-postcss": "^2.0.3",
+    "svelte-material-ui": "^1.0.0-beta.18"
+  }
 }

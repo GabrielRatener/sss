@@ -1,0 +1,507 @@
+
+import {range, first} from './utils'
+
+def {freeze} = Object
+def {floor} = Math
+
+def SIZE = 9
+
+
+def candidateSet() {
+    return new Set(range(1, 9 + 1))
+}
+
+def point(x, y) {
+    return SIZE * y + x
+}
+
+def depoint(index) {
+    return {x: index % SIZE, y: index // SIZE}
+}
+
+def rowCollections() * {
+    def list = []
+
+    for y in range(0, 9) do
+
+        yield rowAt(point(0, y))
+}
+
+def colCollections() * {
+    def list = []
+
+    for x in range(0, 9) do
+        yield colAt(point(x, 0))
+}
+
+def boxAt(index) {
+    def {x, y} = depoint(index)
+
+    def x0 = 3 * (x // 3)
+    def y0 = 3 * (y // 3)
+
+    return new CellCollection('box', [
+        point(x0, y0)
+        point(x0 + 1, y0)
+        point(x0 + 2, y0)
+
+        point(x0, y0 + 1)
+        point(x0 + 1, y0 + 1)
+        point(x0 + 2, y0 + 1)
+
+        point(x0, y0 + 2)
+        point(x0 + 1, y0 + 2)
+        point(x0 + 2, y0 + 2)
+    ])
+}
+
+def colAt(index) {
+    def {x} = depoint(index)
+    def indexes = []
+
+    for y in range(0, 9) do
+        indexes.push(point(x, y))
+
+    return new CellCollection('col', indexes)
+}
+
+def rowAt(index) {
+    def {y} = depoint(index)
+    def indexes = []
+
+    for x in range(0, 9) do
+        indexes.push(point(x, y))
+
+    return new CellCollection('row', indexes)
+}
+
+def customCollection(cells, ommit = []) {
+    def omissions = new Set(ommit)
+    def indexes = cells.filter((index) {
+        return not omissions.has(index)
+    })
+
+    return new CellCollection('custom', indexes)
+}
+
+def customPoints(include, ommit = []) * {
+    def omissions = new Set(ommit)
+
+    for index in include do
+        if not omissions.has(index) do
+            yield index
+}
+
+def collectionsAt(index) * {
+    yield rowAt(index)
+    yield colAt(index)
+    yield boxAt(index)
+}
+
+def boxCollections() * {
+    for y in range(0, 9, 3) do
+        for x in range(0, 9, 3) do
+            yield boxAt(point(x, y))
+}
+
+def allCollections() * {
+    for collection in rowCollections() do
+        yield collection
+
+    for collection in colCollections() do
+        yield collection
+
+    for collection in boxCollections() do
+        yield collection
+}
+
+def allPairs(length) * {
+    for i in range(0, length - 1) do
+        for j in range(i + 1, length) do
+            yield [i, j]
+}
+
+def allArrayPairs(array) * {
+    for [a, b] in allPairs(array.length) do
+        yield [array[a], array[b]]
+}
+
+def collectionNeededValues(sudoku, collection) * {
+
+    def needed = candidateSet()
+    def empty = []
+
+    for {x, y} in collection do
+        def index = point(x, y)
+        def value = sudoku.view(index)
+
+        if value > 0 do
+            needed.delete(value)
+        else
+            empty.push(index)
+
+    for value in needed do
+        def target := null
+
+        for index in empty do
+            if sudoku.isCandidate(index, value) do
+                if target == null do
+                    target = index
+                else
+                    target = null
+                    break
+
+        if target != null do
+            yield {index: target, value}
+}
+
+export def class CellCollection {
+    constructor(type, indexes) {
+        @type = type
+        @indexes = indexes
+    }
+
+    @@ iterator() * {
+        for index in @indexes do
+            yield depoint(index)
+    }
+}
+
+export def class Sudoku {
+    constructor(initial) {
+        @initial = freeze(initial.slice(0))
+        @frames = []
+
+        @fills = new Map()
+        @candidates = new Map()
+
+        for index in range(0, initial.length) do
+            if initial[index] == 0 do
+                @candidates.set(index, candidateSet())
+    }
+
+    completed() {
+        return (@fills.size == @candidates.size)
+    }
+
+    isCandidate(index, value) {
+        if @view(index) > 0 do
+            return value == @view(index)
+        else
+            def candidates = @candidates.get(index)
+
+            return candidates.has(value)
+    }
+
+    view(index) {
+        if @fills.has(index) do
+            return @fills.get(index)
+        else
+            return @initial[index]
+    }
+
+    fill(index, value) {
+        if not @fills.has(index) do      
+
+            @fills.set(index, value)
+
+            @frames.push({
+                type: 'fill'
+                index
+                value
+            })
+    }
+
+    eliminate(index, value) {
+        def remaining = @candidates.get(index)
+
+        if remaining and remaining.has(value) do
+            remaining.delete(value)
+
+            @frames.push({
+                type: 'eliminate'
+                index
+                value
+            })
+    }
+
+    @@ iterator() * {
+        for index in range(0, @initial.length) do
+            yield depoint(index)
+    }
+}
+
+export def sudokuFromString(string) {
+    def values = string.split('').map((c) {
+        return parseInt(c)
+    })
+
+    return new Sudoku(values)
+}
+
+export def findCollectionFills(sudoku, collection) * {
+    def empty := null
+    def candidates = candidateSet()
+
+    for index in collection.indexes do
+        if sudoku.view(index) == 0 do
+            if empty != null do
+                return
+            else
+                empty = index
+        else
+            candidates.delete(sudoku.view(index))
+
+    return {index: empty, value: first(candidates)}
+}
+
+export def trivialEliminations(sudoku, collection) * {
+    def empty = []
+    def values = new Set()
+
+    for {x, y} in collection do
+        if sudoku.view(point(x, y)) == 0 do
+            empty.push(point(x, y))
+        else
+            values.add(point(x, y))
+
+    for index in empty do
+        for value in values do
+            yield {index, value}
+}
+
+export def upgrades(sudoku) * {
+    for index in range(0, sudoku.initial.length) do
+        if sudoku.view(index) == 0 do
+            def candidates = sudoku.candidates.get(index)
+
+            if candidates.size == 1 do
+                yield {index, value: first(candidates)}
+}
+
+
+
+export def solvers = [
+    {
+        name: 'box-fill'
+        level: 1
+        solve(sudoku, fill, eliminate) {
+            for box in boxCollections() do
+                def empty = []
+                def eliminated = new Set()
+
+                for {x, y} in box do
+                    def index = point(x, y)
+
+                    if sudoku.view(index) == 0 do
+                        empty.push(index)
+                    else
+                        eliminated.add(sudoku.view(index))
+                
+                for index in empty do
+                    for value in eliminated do
+                        eliminate(index, value)
+        }
+    }
+
+    {
+        name: 'row-fill'
+        level: 1
+        solve(sudoku, fill, eliminate) {
+            for row in rowCollections() do
+                def empty = []
+                def eliminated = new Set()
+
+                for {x, y} in row do
+
+                    def index = point(x, y)
+
+                    if sudoku.view(index) == 0 do
+                        empty.push(index)
+                    else
+                        eliminated.add(sudoku.view(index))
+                
+                for index in empty do
+                    for value in eliminated do
+                        eliminate(index, value)
+        }
+    }
+
+    {
+        name: 'col-fill'
+        level: 1
+        solve(sudoku, fill, eliminate) {
+            for col in colCollections() do
+                def empty = []
+                def eliminated = new Set()
+
+                for {x, y} in col do
+                    def index = point(x, y)
+
+                    if sudoku.view(index) == 0 do
+                        empty.push(index)
+                    else
+                        eliminated.add(sudoku.view(index))
+                
+                for index in empty do
+                    for value in eliminated do
+                        eliminate(index, value)
+        }
+    }
+
+    {
+        name: 'box-needed'
+        level: 1
+        solve(sudoku, fill, eliminate) {
+            for box in boxCollections() do
+                for {index, value} in collectionNeededValues(sudoku, box) do
+                    fill(index, value)
+        }
+    }
+
+    {
+        name: 'row-needed'
+        level: 1
+        solve(sudoku, fill, eliminate) {
+            for row in rowCollections() do
+                for {index, value} in collectionNeededValues(sudoku, row) do
+                    fill(index, value)
+        }
+    }
+
+    {
+        name: 'col-needed'
+        level: 1
+        solve(sudoku, fill, eliminate) {
+            for col in colCollections() do
+                for {index, value} in collectionNeededValues(sudoku, col) do
+                    fill(index, value)
+        }
+    }
+
+    {
+        name: 'x-wing'
+        level: 2
+        solve(sudoku, fill, eliminate) {
+            # find 2nd degree x-wings and eliminate accordingly
+
+            def count(set) {
+                if (set) do
+                    return set.size
+                else
+                    return 0
+            }
+            
+            for n in range(1, 9 + 1) do
+                # find x wings for every value
+
+                def empty = []
+
+                # map (row number => set(occuring indexes))
+                def rowOccurences = new Map()
+                def colOccurences = new Map()
+
+                for {x, y} in sudoku do
+                    def index = point(x, y)
+
+                    if sudoku.view(index) == 0 do
+                        def candidates = sudoku.candidates.get(index)
+
+                        if candidates.has(n) do
+                            if rowOccurences.has(y) do
+                                rowOccurences.get(y).add(index)
+                            else
+                                rowOccurences.set(y, new Set([index]))
+
+                            if colOccurences.has(x) do
+                                colOccurences.get(x).add(index)
+                            else
+                                colOccurences.set(x, new Set([index]))
+    
+                            empty.push(index)
+
+
+                for [a, b] in allArrayPairs(empty) do
+                    def ptA = depoint(a)
+                    def ptB = depoint(b)
+
+                    # make sure row and column are different for each
+                    
+                    if ptA.x != ptB.x and ptA.y != ptB.y do
+                        def crossPoints = [point(ptA.x, ptB.y), point(ptB.x, ptA.y)]
+                        def wingPoints = [a, b, ...crossPoints]
+
+                        def invalid := false
+
+                        for index in crossPoints do
+                            if not sudoku.isCandidate(index, n) do
+                                invalid = true
+                                break
+
+                        if invalid do
+                            continue
+                        
+                        if count(rowOccurences.get(ptA.y)) == count(rowOccurences.get(ptB.y)) == 2 do
+                            def colA = colAt(point(ptA.x, 0))
+                            def colB = colAt(point(ptB.x, 0))
+                            def columnPoints = [...colA.indexes, ...colB.indexes]
+
+                            for index in customPoints(columnPoints, wingPoints) do
+                                eliminate(index, n)
+                                
+                            continue
+
+                        if count(colOccurences.get(ptA.x)) == count(colOccurences.get(ptB.x)) == 2 do
+                            def rowA = rowAt(point(0, ptA.y))
+                            def rowB = rowAt(point(0, ptB.y))
+                            def rowPoints = [...rowA.indexes, ...rowB.indexes]
+
+                            # console.log('here', ptA, ptB)
+                            # console.log(rowPoints)
+                            # console.log(wingPoints)
+
+                            for index in customPoints(rowPoints, wingPoints) do
+                                eliminate(index, n)
+
+                            continue
+        }
+    }
+]
+
+
+export def solve(sudoku) * {
+    def fill(index, value) {
+
+        sudoku.fill(index, value)
+    }
+
+    def eliminate(index, value) {
+
+        sudoku.eliminate(index, value)
+    }
+
+    while true do
+        def preSize = sudoku.frames.length
+
+        for solver in solvers do
+            def stackSize = sudoku.frames.length
+
+            solver.solve(sudoku, fill, eliminate)
+
+            for {index, value} in upgrades(sudoku) do
+                # console.log('upgrade', depoint(index), value)
+
+                sudoku.fill(index, value)
+
+            if sudoku.frames.length > stackSize do
+
+                yield {
+                    type: solver.name
+                    changes: sudoku.frames.slice(stackSize)
+                }
+
+                break
+
+        if sudoku.frames.length == preSize or sudoku.completed() do
+            return
+}
